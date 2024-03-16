@@ -517,6 +517,28 @@ function setGeneratorVersionCache(version) {
   localStorage.setItem("generator_version", version);
 }
 
+function getTrackerStateCache() {
+  let trackerState = JSON.parse(localStorage.getItem("tracker_state"));
+  if (!trackerState) {
+    trackerState = {
+      locations: {},
+      items: _.cloneDeep(DEFAULT_ITEMS),
+      counters: {},
+      starting_inventory: [],
+      unchanged_starting_inventory: [],
+      items_list: {},
+      layoutElements: [],
+      settings_string: getSettingsStringCache(),
+      generator_version: getGeneratorVersionCache(),
+    };
+  }
+  return trackerState;
+}
+
+function setTrackerStateCache(trackerState) {
+  localStorage.setItem("tracker_state", JSON.stringify(trackerState));
+}
+
 function reducer(state, action) {
   const { payload } = action;
   switch (action.type) {
@@ -733,6 +755,23 @@ function reducer(state, action) {
         generator_version: payload,
       };
     }
+    case "UPDATE_STARTING_INVENTORY": {
+      const items = _.values(payload);
+      const starting_inventory = items.map(item => {
+        return item;
+      });
+
+      return {
+        ...state,
+        starting_inventory,
+      }
+    }
+    case "SAVE_LOADED": {
+      return {
+        ...state,
+        hasLoadedSavedState: true,
+      };
+    }
     default:
       throw new Error();
   }
@@ -749,9 +788,13 @@ function TrackerProvider(props) {
     layoutElements: [],
     settings_string: getSettingsStringCache(),
     generator_version: getGeneratorVersionCache(),
+    hasLoadedSavedState: false,
   };
 
   const [state, dispatch] = useReducer(reducer, initialState);
+  if (state.hasLoadedSavedState) {
+    setTrackerStateCache(state);
+  }
 
   // Implementar local storage?
   return <TrackerContext.Provider value={{ state, dispatch }} {...props} />;
@@ -849,7 +892,7 @@ const useItems = items => {
     return itemID;
     // eslint-disable-next-line
   }, [items]);
-
+  
   return { ...actions, startingIndex, startingItem };
 };
 
@@ -870,6 +913,24 @@ const useSettingsString = () => {
   return { ...actions, settings_string, generator_version };
 };
 
+const useSave = () => {
+  const { dispatch } = useTracker();
+  const savedState = getTrackerStateCache();
+
+  const actions = useMemo(
+    () => ({
+      setSaveLoaded: () => dispatch({ type: "SAVE_LOADED" }),
+      updateStartingInventory: item_list => dispatch({ type: "UPDATE_STARTING_INVENTORY", payload: item_list }),
+    }),
+    [dispatch],
+  );
+
+  return {
+    ...actions,
+    savedState,
+  }
+}
+
 export {
   TrackerProvider,
   useTracker,
@@ -880,4 +941,5 @@ export {
   useSettingsString,
   getSettingsStringCache,
   getGeneratorVersionCache,
+  useSave,
 };

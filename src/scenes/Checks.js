@@ -1,7 +1,7 @@
 import _ from "lodash";
 import { useEffect, useMemo, useState } from "react";
 
-import { useChecks, useLocation } from "../context/trackerContext";
+import { useChecks, useItems, useLocation, useSave } from "../context/trackerContext";
 import Locations from "../utils/locations";
 import LogicHelper from "../utils/logic-helper";
 
@@ -12,10 +12,12 @@ import HINT_REGIONS_SHORT_NAMES from "../data/hint-regions-short-names.json";
 
 const Checks = () => {
   const { state: layoutContext } = useLayout();
-  const [actions] = useLocation();
+  const [locationActions] = useLocation();
+  const itemActions = useItems();
   const { locations, items } = useChecks();
   const [type, setType] = useState("overworld");
   const [selectedRegion, setSelectedRegion] = useState(null);
+  const save = useSave();
 
   const [isInitialized, setIsInitialized] = useState(false);
   useEffect(() => {
@@ -27,7 +29,7 @@ const Checks = () => {
 
         _.forEach(regionLocations, locationName => {
           if (Locations.isProgressLocation(Locations.activeLocations[locationName])) {
-            actions.addLocation(locationName, regionName);
+            locationActions.addLocation(locationName, regionName);
             locationAddedForRegion = true;
           }
         });
@@ -48,15 +50,43 @@ const Checks = () => {
             });
 
           if (showMQToggle && hasPossibleLocations) {
-            actions.addLocation("", regionName);
+            locationActions.addLocation("", regionName);
           }
         }
       });
 
       LogicHelper.updateItems(items);
+
+      // check if savedState is not empty
+      if (!_.isEmpty(save.savedState)) {
+        // Mark items as obtained
+        _.forEach(save.savedState.items_list, (value, key) => {
+          itemActions.markItem(value, key);
+        });
+
+        // Update the counts and logic of what is available
+        LogicHelper.updateItems(save.savedState.items);
+
+        // Mark locations as checked
+        _.forEach(save.savedState.locations, (locs, region) => {
+          _.forEach(locs, (props, loc) => {
+            if (props.isChecked) locationActions.markLocation(loc, region);
+          });
+        });
+
+        // Mark counters
+        _.forEach(save.savedState.counters, (count, name) => {
+          itemActions.markCounter(count, name);
+        });
+
+        // save.updateStartingInventory(save.savedState.items_list);
+        console.log('loaded save');
+      }
+      // Mark save state as loaded
+      save.setSaveLoaded(true);
       setIsInitialized(true);
     }
-  }, [actions, isInitialized, items]);
+  }, [locationActions, isInitialized, items, itemActions, save]);
 
   const countLocations = (locationsList, counter) => {
     _.forEach(_.values(locationsList), locationData => {
@@ -99,7 +129,7 @@ const Checks = () => {
     <div id="checks" className="check-tracker" style={{ backgroundColor: layoutContext.layoutConfig.backgroundColor }}>
       <Buttons type={type} setType={setType} />
       <LocationsList
-        actions={actions}
+        actions={locationActions}
         countLocations={countLocations}
         locations={locations}
         onRegionClicked={onRegionClicked}

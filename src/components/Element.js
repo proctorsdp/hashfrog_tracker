@@ -48,10 +48,11 @@ const Element = props => {
         return acc += cv;
       }, '')
 
-      if(hash !== iconHash) {
-        setSelected(0);
-      }
-
+      // if(hash !== iconHash) {
+      //   // if (startingItem == '5c3d12eba0814d87a362202d03ffcdeb') console.log('resetting');
+      //   setSelected(0);
+      // }
+      // if (startingItem == '5c3d12eba0814d87a362202d03ffcdeb') console.log({ selected, hash });
       setIconHash(hash);
   }, [icons, iconHash, name])
     

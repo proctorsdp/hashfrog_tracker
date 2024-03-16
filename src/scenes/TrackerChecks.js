@@ -4,7 +4,7 @@ import frog from "../assets/icons/hashfrogsping.gif";
 import Checks from "./Checks";
 import Layout from "./Layout";
 
-import { getGeneratorVersionCache, getSettingsStringCache, useItems } from "../context/trackerContext";
+import { getGeneratorVersionCache, getSettingsStringCache, useItems, useSave } from "../context/trackerContext";
 import Locations from "../utils/locations";
 import LogicHelper from "../utils/logic-helper";
 import LogicLoader from "../utils/logic-loader";
@@ -12,6 +12,7 @@ import LogicLoader from "../utils/logic-loader";
 const TrackerChecks = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { updateItemsFromLogic } = useItems();
+  const save = useSave();
 
   const initializeLogic = useCallback(async () => {
     const { logicHelpersFile, dungeonFiles, dungeonMQFiles, bossesFile, overworldFile } =
@@ -31,8 +32,9 @@ const TrackerChecks = () => {
 
     LogicHelper.initialize(logicHelpersFile, settings);
     updateItemsFromLogic(settings); // Starting items.
+    // save.updateStartingInventory(save.savedState.items_list);
     setIsLoading(false);
-  }, [updateItemsFromLogic]);
+  }, [updateItemsFromLogic, save]);
 
   useEffect(() => {
     initializeLogic();

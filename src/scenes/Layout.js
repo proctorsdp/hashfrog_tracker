@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useLayout } from "../context/layoutContext";
+// import { useSave } from "../context/trackerContext";
 
 // Components
 import Element from "../components/Element";
@@ -20,6 +21,8 @@ const baseURL = process.env.PUBLIC_URL;
 
 const Layout = props => {
   const { state: layoutContext } = useLayout();
+  // const [isInitialized, setIsInitialized] = useState(false);
+  // const save = useSave();
 
   const renderLayout = useMemo(() => {
     if (props.layout) return props.layout;
@@ -104,6 +107,10 @@ const Layout = props => {
   useEffect(() => {
     document.title = "HashFrog - Tracker";
     getCacheIcons();
+    // if (!isInitialized) {
+    //   save.updateStartingInventory(save.savedState.items_list);
+    //   setIsInitialized(true);
+    // }
   }, [getCacheIcons]);
 
   LayoutID.reset();
