@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Select from "react-select";
 
 const CustomReactSelect = props => {
+  const [isInitialized, setIsInitialized] = useState(false);
+
   const {
     id = "960b29a364ca444abb5969c97580d973",
     name = "CustomSelect",
@@ -98,8 +100,18 @@ const CustomReactSelect = props => {
   };
 
   useEffect(() => {
+    const name = `hint-${id}`;
+    if (!isInitialized) {
+      const storedHint = JSON.parse(localStorage.getItem(name));
+      if (storedHint && Object.keys(storedHint).length > 0) {
+        setValue(storedHint);
+      }
+      setIsInitialized(true);
+    } else {
+      localStorage.setItem(name, JSON.stringify({...value}));
+    }
     onValueCallback(value);
-  }, [onValueCallback, value]);
+  }, [onValueCallback, value, id, isInitialized]);
 
   return (
     <div onContextMenu={handleRightClick} onAuxClick={handleOnClick} style={{ flex: 1 }}>

@@ -46,6 +46,17 @@ const TrackerLauncher = () => {
     );
   }, [checks, layoutSize]);
 
+  const resetTracker = useCallback(() => {
+    const keysToKeep = ["settings_string", "generator_version", "debug"];
+    const keys = Object.keys(localStorage);
+    keys.forEach(key => {
+      if (!keysToKeep.includes(key)) {
+        localStorage.removeItem(key);
+      }
+    });
+    launchTracker();
+  }, [launchTracker]);
+
   const {
     setString: setSettingsStringCache,
     settings_string: cachedSettingsString,
@@ -77,9 +88,14 @@ const TrackerLauncher = () => {
       <div className="row">
         <div className="col">
           <h3>Layout Configuration</h3>
-          <button type="button" className="btn btn-light btn-sm mb-3" onClick={launchTracker}>
-            Launch tracker
-          </button>
+          <div className="mb-3">
+            <button type="button" className="btn btn-light btn-sm me-2" onClick={launchTracker}>
+              Launch tracker
+            </button>
+            <button type="button" className="btn btn-light btn-sm" onClick={resetTracker}>
+              Reset
+            </button>
+          </div>
           <div className="form-check">
             <input
               type="checkbox"

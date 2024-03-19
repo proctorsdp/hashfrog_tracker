@@ -1,5 +1,5 @@
 import _ from "lodash";
-import { createContext, useContext, useMemo, useReducer } from "react";
+import { createContext, useContext, useMemo, useReducer, useEffect } from "react";
 
 import DEFAULT_ITEMS from "../data/default-items.json";
 import ITEMS_JSON from "../data/items.json";
@@ -517,6 +517,41 @@ function setGeneratorVersionCache(version) {
   localStorage.setItem("generator_version", version);
 }
 
+function getTrackerStateCache(useDefault) {
+  let trackerState = JSON.parse(localStorage.getItem("tracker_state"));
+  if (!trackerState || useDefault) {
+    trackerState = {
+      locations: {},
+      items: _.cloneDeep(DEFAULT_ITEMS),
+      counters: {},
+      starting_inventory: [],
+      unchanged_starting_inventory: [],
+      items_list: {},
+      layoutElements: [],
+      settings_string: getSettingsStringCache(),
+      generator_version: getGeneratorVersionCache(),
+      isInitialized: false,
+      loadedSavedInventory: false,
+      loadedSavedLocations: false,
+    };
+  }
+  return trackerState;
+}
+
+function setTrackerStateCache(trackerState) {
+  localStorage.setItem("tracker_state", JSON.stringify(trackerState));
+}
+
+function getLocationCache(useDefault) {
+  let locations = JSON.parse(localStorage.getItem("locations"));
+  if (!locations || useDefault) locations = {};
+  return locations;
+}
+
+function setLocationCache(trackerState) {
+  localStorage.setItem("locations", JSON.stringify(trackerState.locations));
+}
+
 function reducer(state, action) {
   const { payload } = action;
   switch (action.type) {
@@ -657,6 +692,13 @@ function reducer(state, action) {
         starting_inventory.push("2d85db579f3c4be49bf48d4853d112e7");
       }
 
+      if (state.isInitialized && !state.loadedSavedInventory) {
+        _.forEach(state.items_list, (value) => {
+          if (_.includes(starting_inventory, value)) return;
+          starting_inventory.push(value);
+        });
+      }
+
       // `starting_inventory` will be properly set through `useElement` hook
       const items_list = {};
       for (let i = 0; i < starting_inventory.length; i++) {
@@ -667,14 +709,14 @@ function reducer(state, action) {
 
       // Validating checks based on items collected
       const locations = validateLocations(state.locations, parsedItems);
-
       return {
         ...state,
         locations,
         items: parsedItems,
         starting_inventory,
         unchanged_starting_inventory: _.cloneDeep(starting_inventory),
-        items_list: {},
+        items_list,
+        loadedSavedInventory: true,
       };
     }
     case "COUNTER_MARK": {
@@ -733,12 +775,27 @@ function reducer(state, action) {
         generator_version: payload,
       };
     }
+    case "INITIALIZE": {
+      return {
+        ...payload,
+        locations: state.locations,
+        isInitialized: true,
+        loadedSavedInventory: false,
+        loadedSavedLocations: false,
+      }
+    }
+    case "LOADED_LOCATIONS": {
+      return {
+        ...state,
+        loadedSavedLocations: true,
+      }
+    }
     default:
       throw new Error();
   }
 }
 
-function TrackerProvider(props) {
+function TrackerProvider(props) { 
   const initialState = {
     locations: {},
     items: _.cloneDeep(DEFAULT_ITEMS),
@@ -749,9 +806,22 @@ function TrackerProvider(props) {
     layoutElements: [],
     settings_string: getSettingsStringCache(),
     generator_version: getGeneratorVersionCache(),
+    isInitialized: false,
+    loadedSavedInventory: false,
+    loadedSavedLocations: false,
   };
 
   const [state, dispatch] = useReducer(reducer, initialState);
+
+  useEffect(() => {
+    const savedState = getTrackerStateCache();
+    dispatch({ type: 'INITIALIZE', payload: savedState });
+  }, []);
+
+  useEffect(() => {
+    if (state.isInitialized) setTrackerStateCache(state);
+    if (state.loadedSavedLocations) setLocationCache(state);
+  }, [state]);
 
   // Implementar local storage?
   return <TrackerContext.Provider value={{ state, dispatch }} {...props} />;
@@ -790,7 +860,7 @@ const useElement = (id, startingItem) => {
 };
 
 const useLocation = () => {
-  const { dispatch } = useTracker();
+  const { state, dispatch } = useTracker();
 
   const actions = useMemo(
     () => ({
@@ -801,16 +871,32 @@ const useLocation = () => {
       toggleMQ: regionName => dispatch({ type: "MQ_TOGGLE", payload: regionName }),
       toggleShortcut: regionName => dispatch({ type: "SHORTCUT_TOGGLE", payload: regionName }),
       toggleRegion: regionName => dispatch({ type: "REGION_TOGGLE", payload: regionName }),
+      getSavedLocations: () => getLocationCache(),
+      isReadyToLoadSavedLocations: () => state.isInitialized && state.loadedSavedInventory && !state.loadedSavedLocations,
+      markLocationsAsLoaded: () => dispatch({ type: "LOADED_LOCATIONS" }),
     }),
-    [dispatch],
+    [dispatch, state.isInitialized, state.loadedSavedInventory, state.loadedSavedLocations],
   );
 
   return [actions];
 };
 
+const useCounters = elementName => {
+  const { state } = useTracker();
+
+  const startingCount = useMemo(() => {
+    if (!elementName) return 0;
+    const counter = state.counters[elementName];
+    if (!counter) return 0;
+    return counter;
+  }, [elementName, state.counters]);
+
+  return { startingCount };
+};
+
 const useItems = items => {
   const { state, dispatch } = useTracker();
-
+  
   const actions = useMemo(
     () => ({
       markCounter: (value, item) => dispatch({ type: "COUNTER_MARK", payload: { value, item } }),
@@ -877,6 +963,7 @@ export {
   useElement,
   useLocation,
   useItems,
+  useCounters,
   useSettingsString,
   getSettingsStringCache,
   getGeneratorVersionCache,

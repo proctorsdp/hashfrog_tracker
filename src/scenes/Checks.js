@@ -56,6 +56,19 @@ const Checks = () => {
       LogicHelper.updateItems(items);
       setIsInitialized(true);
     }
+    else if (actions.isReadyToLoadSavedLocations()) {
+      const savedLocations = actions.getSavedLocations();
+
+      _.forEach(savedLocations, (locations, region) => {
+        _.forEach(locations, (locProps, location) => {
+          if (locProps.isChecked) {
+            actions.markLocation(location, region);
+          }
+        });
+      });
+
+      actions.markLocationsAsLoaded();
+    }
   }, [actions, isInitialized, items]);
 
   const countLocations = (locationsList, counter) => {

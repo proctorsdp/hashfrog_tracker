@@ -44,6 +44,7 @@ const HintsTable = props => {
               showIcon={showIcon}
               inverted={inverted}
               dual={dual}
+              id={id+i}
             />
           </td>,
         );
@@ -61,6 +62,7 @@ const HintsTable = props => {
               showItems={showItems}
               bossReceiver={bossReceiver}
               bossElementsIcons={bossElementsIcons}
+              id={id+i}
             />
           </td>,
         );
