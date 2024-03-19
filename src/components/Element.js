@@ -1,7 +1,7 @@
 import _ from "lodash";
 import { Fragment, useCallback, useMemo, useState, useEffect } from "react";
 
-import { useElement, useItems } from "../context/trackerContext";
+import { useElement, useItems, useCounters } from "../context/trackerContext";
 
 // Base Icons
 import icon_check from "../assets/icons/check_16x16.png";
@@ -35,12 +35,28 @@ const Element = props => {
   } = props;
 
   const { markCounter, markItem, startingIndex: trackerContextStartingIndex, startingItem } = useItems(items);
+  const { startingCount } = useCounters(name);
   useElement(id, startingItem);
 
   const [selected, setSelected] = useState(trackerContextStartingIndex || selectedStartingIndex);
-  const [counter, setCounter] = useState(0);
+  const [counter, setCounter] = useState(startingCount);
   const [iconHash, setIconHash] = useState(null);
   const [draggedIcon, setDraggedIcon] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isHintItem, setIsHintItem] = useState(false);
+
+  useEffect(() => {
+    if (isInitialized) return;
+    setIsInitialized(true);
+    const isForHint = new RegExp('sometimes|locations|nested').test(name);
+    setIsHintItem(isForHint);
+    if (!isForHint) return;
+    const storedJSON = JSON.parse(localStorage.getItem(id));
+    if (_.isEmpty(storedJSON)) return;
+    const { draggedIcon, selected } = storedJSON;
+    if (draggedIcon) setDraggedIcon(draggedIcon);
+    if (selected) setSelected(selected);
+  }, [id, isInitialized, name]);
 
   //whenever a change in icon list is detected, start the selection over
   useEffect(() => {
@@ -48,12 +64,9 @@ const Element = props => {
         return acc += cv;
       }, '')
 
-      if(hash !== iconHash) {
-        setSelected(0);
-      }
-
       setIconHash(hash);
-  }, [icons, iconHash, name])
+      if (isInitialized && isHintItem) localStorage.setItem(id, JSON.stringify({ draggedIcon, selected }));
+  }, [icons, iconHash, name, draggedIcon, isHintItem, isInitialized, id, selected])
     
   const icon = useMemo(() => {
     return icons[selected];
@@ -159,10 +172,12 @@ const Element = props => {
             label={label}
             labelStartingIndex={labelStartingIndex}
             labelBackgroundColor={labelBackgroundColor}
+            parentId={id}
           />
         )}
         {type === "nested" && (
           <Element
+            id={`${id}_nested`}
             name={`${name}_nested`}
             type="simple"
             icons={[icon_unknown, icon_check]}
@@ -176,8 +191,23 @@ const Element = props => {
   );
 };
 
-const ElementLabel = ({ label, labelStartingIndex, labelBackgroundColor }) => {
+const ElementLabel = ({ label, labelStartingIndex, labelBackgroundColor, parentId }) => {
   const [index, setIndex] = useState(labelStartingIndex);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const localStorageKey = `${parentId}-label`;
+
+  useEffect(() => {
+    if (isInitialized) return;
+    const storedIndex = localStorage.getItem(localStorageKey);
+    if (storedIndex) {
+      setIndex(parseInt(storedIndex));
+    }
+    setIsInitialized(true);
+  }, [localStorageKey, isInitialized]);
+
+  useEffect(() => {
+    localStorage.setItem(localStorageKey, index);
+  }, [localStorageKey, index]);
 
   const display = useMemo(() => {
     if (Array.isArray(label)) {
